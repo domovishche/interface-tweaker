@@ -1,12 +1,10 @@
 {
   "required": true,
-  "package": "com.example.modid.mixin",
+  "package": "com.domovishche.interfacetweaker.mixin",
   "compatibilityLevel": "JAVA_8",
   "target": "@env(DEFAULT)",
-  "client": [
-    "MinecraftMixin"
-  ],
-  "mixins": [],
+  "client": [],
+  "mixins": ["MixinItemStack"],
   "server": [],
   "setSourceFile": true,
   "minVersion": "0.8.7"
