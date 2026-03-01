@@ -8,8 +8,8 @@ import net.minecraftforge.fml.common.event.FMLPreInitializationEvent;
 public class interfacetweaker {
 
     public static final String MODID   = "interfacetweaker";
-    public static final String NAME    = "Interface Tweaker";
-    public static final String VERSION = "0.0.0.0.1-alpha";
+    public static final String NAME    = "Small Item Tweaker";
+    public static final String VERSION = "0.0.0.0.2-beta";
 
     @Mod.Instance
     public static com.domovishche.interfacetweaker.interfacetweaker INSTANCE;

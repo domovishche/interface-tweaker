@@ -11,37 +11,14 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
-
-import javax.annotation.Nullable;
+import net.minecraft.client.Minecraft;
+import net.minecraft.util.text.TextFormatting;
 import java.util.List;
 import java.util.Map;
+import java.util.ListIterator;
 
 @Mixin(ItemStack.class)
 public class MixinItemStack {
-
-    // ── Tooltip ID hider ──────────────────────────────────────────────────────
-
-    @Inject(method = "getTooltip", at = @At("RETURN"))
-    private void hideAdvancedTooltipIds(
-            @Nullable EntityPlayer playerIn,
-            ITooltipFlag tooltipFlag,
-            CallbackInfoReturnable<List<String>> cir
-    ) {
-        if (!ModConfig.creativeOnly) return;
-        if (!tooltipFlag.isAdvanced()) return;
-        if (playerIn != null && playerIn.capabilities.isCreativeMode) return;
-
-        List<String> tooltip = cir.getReturnValue();
-        if (tooltip == null || tooltip.isEmpty()) return;
-
-        tooltip.removeIf(MixinItemStack::isVanillaIdLine);
-    }
-
-    private static boolean isVanillaIdLine(String line) {
-        if (line == null || !line.startsWith("\u00a78")) return false;
-        String raw = line.replaceAll("\u00a7[0-9a-fk-orA-FK-OR]", "").trim();
-        return raw.contains(":") || raw.matches("\\d+");
-    }
 
     // ── Enchantment glint ─────────────────────────────────────────────────────
 
@@ -76,6 +53,52 @@ public class MixinItemStack {
                 });
                 if (allSuppressed) {
                     cir.setReturnValue(false);
+                }
+            }
+        }
+    }
+
+    @Inject(method = "getTooltip", at = @At("RETURN"), cancellable = true)
+    private void onGetTooltip(EntityPlayer playerIn, net.minecraft.client.util.ITooltipFlag advanced, CallbackInfoReturnable<List<String>> cir) {
+
+        // 1. If creativeOnly = false, we do nothing (vanilla behavior)
+        if (!ModConfig.creativeOnly) {
+            return;
+        }
+
+        // 2. If creativeOnly = true, we remove info ONLY if the player is NOT in creative
+        Minecraft mc = Minecraft.getMinecraft();
+        if (mc.player != null && !mc.player.isCreative()) {
+            List<String> tooltip = cir.getReturnValue();
+            ListIterator<String> iterator = tooltip.listIterator();
+
+            while (iterator.hasNext()) {
+                String line = iterator.next();
+                String cleanLine = TextFormatting.getTextWithoutFormattingCodes(line);
+
+                if (cleanLine != null) {
+                    // HANDLE NUMERICAL IDs (e.g., "Stone (#0001/0)")
+                    // These are often appended to the name line, so we modify the string instead of removing the line.
+                    if (cleanLine.contains(" (#")) {
+                        // Find where the ID starts (usually " (#") and cut the string there
+                        int index = line.lastIndexOf(" (#");
+                        if (index != -1) {
+                            iterator.set(line.substring(0, index));
+                            continue; // Move to next line
+                        }
+                    }
+
+                    // HANDLE REGISTRY NAMES AND NBT (Full line removal)
+                    // Registry Name: "minecraft:stone" (contains ':' but no spaces)
+                    boolean isRegistryName = cleanLine.contains(":") && !cleanLine.contains(" ");
+                    // NBT Count: "NBT: 1 tag(s)"
+                    boolean isNbt = cleanLine.startsWith("NBT:");
+                    // ID on its own line: "#0001"
+                    boolean isStandaloneId = cleanLine.startsWith("#");
+
+                    if (isRegistryName || isNbt || isStandaloneId) {
+                        iterator.remove();
+                    }
                 }
             }
         }
